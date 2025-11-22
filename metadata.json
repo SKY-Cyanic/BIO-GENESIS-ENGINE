@@ -1,0 +1,5 @@
+{
+  "name": "Bio-Genesis Engine",
+  "description": "A sci-fi biological engineering simulator that generates scientifically plausible creatures from abstract ideas using Gemini AI.",
+  "requestFramePermissions": []
+}
