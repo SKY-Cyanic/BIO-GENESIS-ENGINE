@@ -162,3 +162,97 @@ export const generateCreatureImage = async (visualPrompt: string): Promise<strin
     return null;
   }
 };
+
+export const simulateBattle = async (creatureA: CreatureResponse, creatureB: CreatureResponse, language: Language): Promise<{ summary: string; log: string; winner: string; imageUrl: string | null }> => {
+  try {
+    // 1. Prepare Text Prompt
+    const textPrompt = `
+    Simulate a deadly battle between these two creatures.
+    
+    CREATURE A: ${creatureA.codex.common_name}
+    - Stats: HP ${creatureA.engine_data.stats.hp}, Speed ${creatureA.engine_data.stats.speed}, Intel ${creatureA.engine_data.stats.intelligence}, Stealth ${creatureA.engine_data.stats.stealth}
+    - Traits: ${creatureA.engine_data.traits.map(t => t.name).join(', ')}
+    - Weaknesses: ${creatureA.engine_data.weaknesses.join(', ')}
+    
+    CREATURE B: ${creatureB.codex.common_name}
+    - Stats: HP ${creatureB.engine_data.stats.hp}, Speed ${creatureB.engine_data.stats.speed}, Intel ${creatureB.engine_data.stats.intelligence}, Stealth ${creatureB.engine_data.stats.stealth}
+    - Traits: ${creatureB.engine_data.traits.map(t => t.name).join(', ')}
+    - Weaknesses: ${creatureB.engine_data.weaknesses.join(', ')}
+
+    Analyze their biological advantages and disadvantages. Determine a winner based on logic (e.g., fire beats ice, speed beats brute force).
+    
+    OUTPUT FORMAT:
+    You must return a JSON object with the following fields:
+    - summary: A single, punchy sentence summarizing the outcome.
+    - log: A detailed, dramatic battle report (3-4 paragraphs). Use Markdown formatting (bold, lists) but NO headers.
+    - winner: The name of the winning creature.
+
+    Language: ${language === 'ko' ? 'Korean' : 'English'}
+    `;
+
+    // 2. Prepare Image Prompt (Combined Visuals)
+    const imagePrompt = `
+      Cinematic action shot of a fight between two sci-fi creatures.
+      Creature 1: ${creatureA.engine_data.visual_generation_prompt}.
+      Creature 2: ${creatureB.engine_data.visual_generation_prompt}.
+      Action: Dynamic combat pose, impact effects, dust particles, motion blur.
+      Style: Unreal Engine 5 render, hyper-realistic, volumetric lighting, 8k resolution, cinematic composition.
+    `;
+
+    // 3. Schema for Text
+    const battleSchema = {
+      type: Type.OBJECT,
+      properties: {
+        summary: { type: Type.STRING },
+        log: { type: Type.STRING },
+        winner: { type: Type.STRING },
+      },
+      required: ["summary", "log", "winner"],
+    };
+
+    // 4. Execute both requests in parallel
+    const [textResponse, imageResponse] = await Promise.all([
+      ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: textPrompt,
+        config: { 
+          temperature: 0.8,
+          responseMimeType: "application/json",
+          responseSchema: battleSchema
+        }
+      }),
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: imagePrompt }] },
+      })
+    ]);
+
+    // 5. Extract Text
+    let battleData = { summary: "Analysis Failed", log: "Could not generate log.", winner: "Unknown" };
+    try {
+      if (textResponse.text) {
+        battleData = JSON.parse(textResponse.text);
+      }
+    } catch (e) {
+      console.error("Failed to parse battle JSON", e);
+    }
+
+    // 6. Extract Image
+    let imageUrl = null;
+    if (imageResponse.candidates && imageResponse.candidates[0].content.parts) {
+      for (const part of imageResponse.candidates[0].content.parts) {
+        if (part.inlineData) {
+          const base64EncodeString = part.inlineData.data;
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          imageUrl = `data:${mimeType};base64,${base64EncodeString}`;
+        }
+      }
+    }
+
+    return { ...battleData, imageUrl };
+
+  } catch (error) {
+    console.error("Error simulating battle:", error);
+    return { summary: "Error", log: "Could not run simulation.", winner: "None", imageUrl: null };
+  }
+};

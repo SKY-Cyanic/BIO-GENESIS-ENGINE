@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dna, Sparkles, AlertTriangle, ChevronRight, Cpu, Globe, Box, LayoutGrid, Edit3, Check, Database, History } from 'lucide-react';
+import { Dna, Sparkles, AlertTriangle, ChevronRight, Cpu, Globe, Box, LayoutGrid, Edit3, Check, Database, History, Swords } from 'lucide-react';
 import { generateCreatureData, generateCreatureImage } from './services/geminiService';
 import { saveCreatureToCodex, StoredCreature } from './services/storageService';
 import { GenerationState, Language } from './types';
@@ -7,6 +7,7 @@ import CodexEntry from './components/CodexEntry';
 import EngineDataView from './components/EngineDataView';
 import World3D from './components/World3D';
 import GlobalCodex from './components/GlobalCodex';
+import BattleArena from './components/BattleArena';
 
 // --- Constants & Types for Guided Mode ---
 type Category = 'habitat' | 'diet' | 'structure' | 'trait';
@@ -78,7 +79,7 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'generator' | 'archives'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'archives' | 'arena'>('generator');
   const [viewMode, setViewMode] = useState<'dashboard' | 'simulation'>('dashboard');
   
   // New State for Guided Mode
@@ -136,9 +137,9 @@ const App: React.FC = () => {
       // Step 2: Generate Image
       const imageUrl = await generateCreatureImage(data.engine_data.visual_generation_prompt);
       
-      // Step 3: Save to Archives
+      // Step 3: Save to Archives (Async - fire and forget)
       if (imageUrl && data) {
-        saveCreatureToCodex(data, imageUrl);
+        saveCreatureToCodex(data, imageUrl).catch(console.error);
       }
 
       setState(prev => ({ ...prev, status: 'complete', imageUrl }));
@@ -179,7 +180,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-wider text-white">BIO-GENESIS <span className="text-bio-accent">ENGINE</span></h1>
-              <p className="text-[10px] text-bio-muted font-mono uppercase tracking-widest">v3.1.0 // ARCHIVES_ONLINE</p>
+              <p className="text-[10px] text-bio-muted font-mono uppercase tracking-widest">v3.2.0 // BATTLE_READY</p>
             </div>
           </div>
           
@@ -191,14 +192,21 @@ const App: React.FC = () => {
                 className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 ${activeTab === 'generator' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 <Sparkles size={14} />
-                {language === 'ko' ? '생성' : 'GENERATE'}
+                <span className="hidden sm:inline">{language === 'ko' ? '생성' : 'GENERATE'}</span>
               </button>
               <button 
                 onClick={() => setActiveTab('archives')}
                 className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 ${activeTab === 'archives' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 <Database size={14} />
-                {language === 'ko' ? '백과사전' : 'ARCHIVES'}
+                <span className="hidden sm:inline">{language === 'ko' ? '백과사전' : 'ARCHIVES'}</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('arena')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 ${activeTab === 'arena' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Swords size={14} />
+                <span className="hidden sm:inline">{language === 'ko' ? '시뮬레이션' : 'SIMULATION'}</span>
               </button>
             </nav>
 
@@ -222,9 +230,15 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
-        {activeTab === 'archives' ? (
+        {activeTab === 'archives' && (
           <GlobalCodex onLoadCreature={handleLoadFromArchive} language={language} />
-        ) : (
+        )}
+
+        {activeTab === 'arena' && (
+           <BattleArena language={language} />
+        )}
+
+        {activeTab === 'generator' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             {/* Left Panel: Input & Codex */}

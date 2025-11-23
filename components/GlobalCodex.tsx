@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCodexArchives, StoredCreature } from '../services/storageService';
 import { Language } from '../types';
-import { Database, Clock, ArrowRight, Trash2 } from 'lucide-react';
+import { Database, Clock, ArrowRight, Loader2 } from 'lucide-react';
 
 interface GlobalCodexProps {
   onLoadCreature: (creature: StoredCreature) => void;
@@ -10,10 +10,16 @@ interface GlobalCodexProps {
 
 const GlobalCodex: React.FC<GlobalCodexProps> = ({ onLoadCreature, language }) => {
   const [archives, setArchives] = useState<StoredCreature[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const data = getCodexArchives();
-    setArchives(data);
+    const loadData = async () => {
+      setLoading(true);
+      const data = await getCodexArchives();
+      setArchives(data);
+      setLoading(false);
+    };
+    loadData();
   }, []);
 
   const labels = {
@@ -23,6 +29,15 @@ const GlobalCodex: React.FC<GlobalCodexProps> = ({ onLoadCreature, language }) =
     date: language === 'ko' ? '발견일' : 'Date Discovered',
     clear: language === 'ko' ? '초기화' : 'Clear All'
   };
+
+  if (loading) {
+    return (
+      <div className="h-96 flex flex-col items-center justify-center text-slate-500">
+        <Loader2 className="animate-spin mb-2" size={32} />
+        <span className="text-xs font-mono">LOADING ARCHIVES...</span>
+      </div>
+    );
+  }
 
   if (archives.length === 0) {
     return (
